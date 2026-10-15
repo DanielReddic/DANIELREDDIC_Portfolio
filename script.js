@@ -13,6 +13,19 @@ const ART=[
  {src:IM[5],ar:.996,title:"Title",meta:"Medium, year",desc:"Description of the work."},
  {src:IM[6],ar:.37,title:"Title",meta:"Medium, year",desc:"Description of the work."},
  {src:IM[7],ar:0.653,title:"Title",meta:"Medium, year",desc:"Description of the work."}];
+// PHYSICAL tab 2: IN PURSUIT OF PERCEPTION 2025 (photos in assets/perception/). Edit titles/descriptions here.
+const ART2=[
+ {src:"assets/perception/01.jpg",ar:0.806,title:"Title",meta:"Medium, year",desc:"Description of the work."},
+ {src:"assets/perception/02.jpg",ar:0.661,title:"Title",meta:"Medium, year",desc:"Description of the work."},
+ {src:"assets/perception/03.jpg",ar:0.655,title:"Title",meta:"Medium, year",desc:"Description of the work."},
+ {src:"assets/perception/04.jpg",ar:0.996,title:"Title",meta:"Medium, year",desc:"Description of the work."},
+ {src:"assets/perception/05.jpg",ar:0.5,title:"Title",meta:"Medium, year",desc:"Description of the work."},
+ {src:"assets/perception/06.jpg",ar:1.903,title:"Title",meta:"Medium, year",desc:"Description of the work."},
+ {src:"assets/perception/07.jpg",ar:0.788,title:"Title",meta:"Medium, year",desc:"Description of the work."},
+ {src:"assets/perception/08.jpg",ar:0.83,title:"Title",meta:"Medium, year",desc:"Description of the work."},
+ {src:"assets/perception/09.jpg",ar:0.747,title:"Title",meta:"Medium, year",desc:"Description of the work."},
+ {src:"assets/perception/10.jpg",ar:0.772,title:"Title",meta:"Medium, year",desc:"Description of the work."},
+ {src:"assets/perception/11.jpg",ar:0.798,title:"Title",meta:"Medium, year",desc:"Description of the work."}];
 // LENS binder: 3 spreads, each with a left and right page. Photos sit freely on the page:
 // x = % from the left, y = % from the top, w = width as % of the page (height follows the photo).
 // For video use {type:'video',src:'assets/clip.mp4',x:..,y:..,w:..}; for text use {type:'text',text:'...',x:..,y:..,w:..}.
@@ -72,16 +85,39 @@ function media(it){
  return `<figure class="k ${it.w?'w':''}"><div class="m">${m}</div>${it.cap?`<figcaption>${it.cap}</figcaption>`:''}</figure>`;
 }
 const pg=a=>`<div class="pg${a.length&&a[0].x!==undefined?' free':''}">${a.map(media).join('')}</div>`;
-function lense(){
+function lenseH(){
  const S=SPREADS,n=S.length;
  let h=`<div class="wrap"><div class="book"><div class="half l">${pg(S[0].l)}</div><div class="half r">${pg(S[n-1].r)}</div>`;
  for(let i=0;i<n-1;i++)h+=`<div class="leaf"><div class="face2 f">${pg(S[i].r)}</div><div class="face2 b">${pg(S[i+1].l)}</div></div>`;
- return h+`<div class="rings">${[12,36,60,84].map(t=>`<div class="ring" style="top:${t}%"></div>`).join('')}</div></div>
+ return h+`</div>
  <div class="ctl"><button class="pv" aria-label="Previous">&larr;</button><span class="pi"></span><button class="nx" aria-label="Next">&rarr;</button></div></div>`;
 }
 let lidx=0,binders=[];
-const bStep=d=>{lidx=Math.max(0,Math.min(SPREADS.length-1,lidx+d));binders=binders.filter(f=>f()!==false)};
+const isV=()=>matchMedia('(orientation:portrait)').matches;
+const vItems=()=>SPREADS.flatMap(s=>[...s.l,...s.r]);
+function vpage(it){
+ if(it.type==='text')return `<p class="vt">${it.text}</p>`;
+ if(it.type==='video')return `<video src="${it.src}" controls playsinline></video>`;
+ return `<img src="${it.src}" data-full="${it.full||it.src}" alt="${it.cap||''}" decoding="async">`}
+function lenseV(){const P_=vItems(),N=P_.length;
+ return `<div class="wrap"><div class="vbook"><div class="vbind"><i></i><i></i></div>${P_.map((it,i)=>`<div class="vleaf" style="z-index:${N-i}"><div class="vf">${vpage(it)}</div><div class="vb"></div></div>`).join('')}</div>
+ <div class="ctl"><button class="pv" aria-label="Previous">&uarr;</button><span class="pi"></span><button class="nx" aria-label="Next">&darr;</button></div></div>`}
+function lense(){return isV()?lenseV():lenseH()}
+let vidx=0;
+function wireV(root){
+ const vb=root.querySelector('.vbook'),ls=[...vb.querySelectorAll('.vleaf')],pv=root.querySelector('.pv'),nx=root.querySelector('.nx'),pi=root.querySelector('.pi');
+ const up=()=>{if(!vb.isConnected)return false;
+  ls.forEach((l,i)=>{l.classList.toggle('flipped',i<vidx);
+   if(i>=vidx&&i<=vidx+1)l.querySelectorAll('img[data-full]').forEach(im=>{if(!im.dataset.up){im.dataset.up=1;im.src=im.dataset.full}})});
+  pi.textContent=`${vidx+1} / ${ls.length}`;pv.disabled=!vidx;nx.disabled=vidx>=ls.length-1};
+ pv.onclick=()=>bStep(-1);nx.onclick=()=>bStep(1);
+ let y0=null;vb.addEventListener('touchstart',e=>{y0=e.touches[0].clientY},{passive:true});
+ vb.addEventListener('touchend',e=>{if(y0==null)return;const d=e.changedTouches[0].clientY-y0;y0=null;if(Math.abs(d)>40)bStep(d<0?1:-1)});
+ binders.push(up);up();
+}
+const bStep=d=>{if(isV())vidx=Math.max(0,Math.min(vItems().length-1,vidx+d));else lidx=Math.max(0,Math.min(SPREADS.length-1,lidx+d));binders=binders.filter(f=>f()!==false)};
 function wire(root){
+ if(root.querySelector('.vbook'))return wireV(root);
  const ls=[...root.querySelectorAll('.leaf')],pv=root.querySelector('.pv'),nx=root.querySelector('.nx'),pi=root.querySelector('.pi');let first=true;
  const up=()=>{if(!ls[0].isConnected)return false;ls.forEach((l,i)=>{l.classList.toggle('flipped',i<lidx);setTimeout(()=>l.style.zIndex=i<lidx?i+1:ls.length-i,i<lidx&&!first?500:0)});
   pi.textContent=`${lidx+1} / ${ls.length+1}`;pv.disabled=!lidx;nx.disabled=lidx>=ls.length;first=false};
@@ -107,23 +143,24 @@ function wireD(root){
 const PAGES={lense,digital,shop:()=>`<div class="soon">Shop — coming soon</div>`};
 
 /* ---- curved gallery (Physical) ---- */
-const ring=$('#ring'),R=1150;let pan=0,panT=0,maxPan=0,minPan=0,drag=null,moved=0,f0v=true;
+const ring=$('#ring'),R=1150;let CA=ART;let pan=0,panT=0,maxPan=0,minPan=0,drag=null,moved=0,f0v=true;
 function gal(){
- const H=Math.max(180,Math.min(.5*(innerHeight-hh()),440)),gap=90,W=ART.map(a=>a.ar*H);
- const L=W.reduce((a,b)=>a+b,0)+gap*(ART.length-1);let s=-L/2;ring.innerHTML='';
- ART.forEach((a,i)=>{const c=s+W[i]/2;s+=W[i]+gap;
+ const H=Math.max(180,Math.min(.5*(innerHeight-hh()-(innerWidth<innerHeight?70:44)),440)),gap=90,W=CA.map(a=>a.ar*H);
+ const L=W.reduce((a,b)=>a+b,0)+gap*(CA.length-1);let s=-L/2;ring.innerHTML='';
+ CA.forEach((a,i)=>{const c=s+W[i]/2;s+=W[i]+gap;
   const f=document.createElement('figure');f.className='fr';f.style.cssText=`width:${W[i]}px;height:${H}px;margin:${-H/2}px 0 0 ${-W[i]/2}px;transform:rotateY(${-c/R}rad) translateZ(${-R}px)`;
   f.innerHTML=`<img src="${a.src}" alt="${a.title}"><figcaption><b>${a.title}</b>${a.meta}<br>${a.desc}</figcaption>`;
   f.onclick=()=>{if(moved<6)lb(i)};ring.appendChild(f)});
  const D=180/Math.PI;maxPan=(L/2-W[W.length-1]/2)/R*D;minPan=-(L/2-W[0]/2)/R*D;panT=Math.max(minPan,Math.min(maxPan,panT));
 }
+document.querySelectorAll('.ptabs button').forEach(b=>b.onclick=()=>{CA=b.dataset.g==='1'?ART2:ART;document.querySelectorAll('.ptabs button').forEach(x=>x.classList.toggle('on',x===b));panT=0;pan=0;ring.style.opacity=0;setTimeout(()=>{gal();ring.style.opacity=1},260)});
 const G=$('#gal'),setPan=v=>panT=Math.max(minPan,Math.min(maxPan,v));
 G.onpointerdown=e=>{drag=e.clientX;moved=0};
 addEventListener('pointermove',e=>{if(drag!=null){const d=e.clientX-drag;moved+=Math.abs(d);drag=e.clientX;setPan(panT-d*.12)}});
 addEventListener('pointerup',()=>drag=null);
 G.addEventListener('wheel',e=>{e.preventDefault();setPan(panT+(e.deltaY+e.deltaX)*.05)},{passive:false});
 let li=-1;const LB=$('#lb');
-function lb(i){li=(i+ART.length)%ART.length;const a=ART[li];LB.querySelector('img').src=a.src;LB.querySelector('p').innerHTML=`<b style="color:#fff;letter-spacing:.06em;text-transform:uppercase">${a.title}</b> — ${a.meta}<br>${a.desc}`;LB.style.display='flex'}
+function lb(i){li=(i+CA.length)%CA.length;const a=CA[li];LB.querySelector('img').src=a.src;LB.querySelector('p').innerHTML=`<b style="color:#fff;letter-spacing:.06em;text-transform:uppercase">${a.title}</b> — ${a.meta}<br>${a.desc}`;LB.style.display='flex'}
 LB.onclick=()=>{LB.style.display='none';li=-1};
 addEventListener('keydown',e=>{const fl=document.querySelector('.flow.on'),k=e.key;
  if(li>=0){if(k==='Escape')LB.onclick();if(k==='ArrowRight')lb(li+1);if(k==='ArrowLeft')lb(li-1)}
@@ -185,5 +222,6 @@ async function home(){if(busy||!cur)return;busy=true;try{await toHome();setNav(n
 document.querySelectorAll('nav button').forEach(b=>b.onclick=()=>open(b.dataset.p));
 $('#home').onclick=home;addEventListener('resize',fit);fit();loop();
 
-document.addEventListener('click',e=>{const im=e.target.closest&&e.target.closest('.pg.free img');
+document.addEventListener('click',e=>{const im=e.target.closest&&e.target.closest('.pg.free img,.vf img');
  if(im){const L=document.querySelector('#lb');L.querySelector('img').src=im.dataset.full||im.src;L.querySelector('p').innerHTML='';L.style.display='flex'}});
+matchMedia('(orientation:portrait)').addEventListener('change',()=>{if(cur==='lense'&&!busy)mount('lense',loc==='low'?low:pageEl)});
